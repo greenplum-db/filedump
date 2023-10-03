@@ -20,36 +20,6 @@ ifeq ($(PG_CONFIG_MAJOR_VERSION),)
 $(error cannot detect gpdb version with pg_config)
 endif # PG_CONFIG_MAJOR_VERSION
 
-ifeq ($(PG_CONFIG_MAJOR_VERSION),8.3)
-	GPDB_RELEASE = 5
-	GPDB_COMMIT = 5.25.0
-	# pg_control has incompatible formats between gpdb major versions
-	REGRESS += gpdb-$(GPDB_RELEASE)-control
-endif # PG_CONFIG_MAJOR_VERSION
-
-ifeq ($(PG_CONFIG_MAJOR_VERSION),9.4)
-	GPDB_RELEASE = 6
-	GPDB_COMMIT = 6.10.1
-	# pg_control has incompatible formats between gpdb major versions
-	REGRESS += gpdb-$(GPDB_RELEASE)-control
-endif # PG_CONFIG_MAJOR_VERSION
-
-ifeq ($(PG_CONFIG_MAJOR_VERSION),9.6)
-	# gpdb-7, postgres-9.6 based
-	GPDB_RELEASE = 7
-	GPDB_COMMIT = fde7fa001136160d980efec44674435243a5619f
-	# pg_control has incompatible formats between gpdb major versions
-	REGRESS += gpdb-7_9.6-control
-endif # PG_CONFIG_MAJOR_VERSION
-
-ifeq ($(PG_CONFIG_MAJOR_VERSION),12)
-	# gpdb-7, postgres-12 based
-	GPDB_RELEASE = 7
-	GPDB_COMMIT = 624f460cee5d3e5d9fc71b8cbbb399f2ee9acfe1
-	# pg_control has incompatible formats between gpdb major versions
-	REGRESS += gpdb-7_12-control
-endif # PG_CONFIG_MAJOR_VERSION
-
 ifeq ($(PG_CONFIG_MAJOR_VERSION),12.12)
 	# gpdb-7, postgres-12 based
 	GPDB_RELEASE = 7
@@ -62,20 +32,12 @@ ifeq ($(GPDB_COMMIT),)
 $(error unsupported gpdb version: $(shell pg_config --version))
 endif # GPDB_COMMIT
 
-# DOWNLOADER takes 2 arguments at the tail, the first is the target output
-# path, the second is the url.
-#
-# Note that github does not allow ranged downloading, so do not try to resume
-# an incomplete download.
-DOWNLOADER ?= curl --silent --output
-
 PROGRAM = pg_filedump
 OBJS	= decode.o pg_filedump.o stringinfo.o
 
 DOCS = README.pg_filedump
 DOCS += README.gpdb.md
 
-LINKDIR := gpdb_$(GPDB_RELEASE)_$(PG_CONFIG_MAJOR_VERSION)
 PKG_CONFIG ?= pkg-config --silence-errors
 
 # auto detect zlib if not explicitly specified
@@ -108,81 +70,9 @@ $(error cannot find libzstd)
 	PG_LIBS += $(shell $(PKG_CONFIG) --libs libzstd)
 endif # ENABLE_ZSTD
 
-# auto detect quicklz if not explicitly specified
-#
-# this only works if the quicklz package is detected with pkg-config, however
-# this is not usually the case, quicklz is not shipped on most linux
-# distributions.
-#
-# on the other hand, the gpdb official released packages has built-in quicklz,
-# but we are unable to use them:
-#
-# - gpdb-5 links quicklz code into the postgres binary directly, so it is
-#   impossible for us to link separately;
-# - gpdb-6 provides the libquicklz shared libraries, but without header files,
-#   and we cannot include the header files in the pg_filedump tree due to
-#   license issue;
-#
-# so in general the quicklz support will be missing in an end-user build.
-ifndef ENABLE_QUICKLZ
-	ENABLE_QUICKLZ = $(shell $(PKG_CONFIG) --exists quicklz && echo y || echo n)
-
-	# do not give up if quicklz package is not found, try to build from
-	# sources, but this only works for a non-PGXS build
-	ifndef USE_PGXS
-		ifeq ($(ENABLE_QUICKLZ),n)
-			ifneq ($(wildcard \
-						$(top_builddir)/src/backend/storage/file/quicklz1.c \
-						$(top_builddir)/gpAux/addon/src/backend/quicklz1.c),)
-				ENABLE_QUICKLZ = y
-			endif
-		endif
-	endif # USE_PGXS
-endif # ENABLE_QUICKLZ
-ifeq ($(ENABLE_QUICKLZ),y)
-	PG_CPPFLAGS += -D ENABLE_QUICKLZ
-
-	ifneq ($(shell $(PKG_CONFIG) --libs quicklz),)
-		PG_CPPFLAGS += $(shell $(PKG_CONFIG) --cflags quicklz)
-		PG_LIBS += $(shell $(PKG_CONFIG) --libs quicklz)
-	else
-		PG_CPPFLAGS += -D ENABLE_QUICKLZ_LEGACY
-
-		ifdef USE_PGXS
-$(error cannot find quicklz package)
-		endif # USE_PGXS
-
-		# possible source path for for gpdb 4.3
-		ifneq ($(wildcard $(top_builddir)/src/backend/storage/file/quicklz1.c),)
-			LINKS += src/backend/storage/file/quicklz1.c
-			LINKS += src/backend/storage/file/quicklz3.c
-		else
-			# possible source path for for gpdb 5
-			ifneq ($(wildcard $(top_builddir)/gpAux/addon/src/backend/quicklz1.c),)
-				LINKS += gpAux/addon/src/backend/quicklz1.c
-				LINKS += gpAux/addon/src/backend/quicklz3.c
-			else
-$(error cannot find quicklz package or source code)
-			endif
-		endif
-	endif
-endif # ENABLE_QUICKLZ
-
 $(info ENABLE_ZLIB: $(ENABLE_ZLIB))
 $(info ENABLE_ZSTD: $(ENABLE_ZSTD))
-$(info ENABLE_QUICKLZ: $(ENABLE_QUICKLZ))
 
-LINKS += src/backend/utils/adt/numutils.c
-LINKS += src/backend/access/common/heaptuple.c
-LINKS += src/backend/cdb/cdbappendonlystorageformat.c
-
-ifeq ($(GPDB_RELEASE),7)
-LINKS += src/backend/utils/adt/expandeddatum.c
-endif # GPDB_RELEASE
-
-LINKSRCS := $(addprefix $(LINKDIR)/,$(LINKS))
-
-OBJS += $(LINKSRCS:.c=.o)
 OBJS += gpdb.o
 OBJS += mock.o
 
@@ -198,10 +88,6 @@ ifeq ($(filter $(GPDB_RELEASE),6 7),)
 endif
 endif # ENABLE_ZSTD
 
-ifeq ($(ENABLE_QUICKLZ),y)
-	REGRESS += gpdb-$(GPDB_RELEASE)-quicklz
-endif # ENABLE_QUICKLZ
-
 ifdef USE_PGXS
 	PG_CONFIG = pg_config
 	PGXS := $(shell $(PG_CONFIG) --pgxs)
@@ -216,22 +102,10 @@ endif
 # avoid linking against all libs that the server links against (xml, selinux, ...)
 LIBS = $(libpq_pgport)
 
-$(LINKSRCS): $(LINKDIR)/timestamp.$(GPDB_COMMIT)
-
-$(LINKDIR)/timestamp.$(GPDB_COMMIT):
-	rm -rf $(LINKDIR)
-	mkdir -p $(dir $(LINKSRCS))
-	rm -f $(LINKSRCS)
-	$(foreach f,$(LINKS),$(DOWNLOADER) \
-		$(LINKDIR)/$f \
-		$(GPDB_REPO)/$(GPDB_COMMIT)/$f;)
-	touch $@
-
 # add init_file
 REGRESS_OPTS = --init-file=$(srcdir)/init_file
 
 # always redownload all the files
 .PHONY: download
 download:
-	rm -rf $(LINKDIR)
-	$(MAKE) -f $(firstword $(MAKEFILE_LIST)) $(LINKDIR)/timestamp.$(GPDB_COMMIT)
+	$(MAKE) -f $(firstword $(MAKEFILE_LIST))
