@@ -83,9 +83,7 @@ ifeq ($(ENABLE_ZLIB),y)
 endif # ENABLE_ZLIB
 
 ifeq ($(ENABLE_ZSTD),y)
-ifeq ($(filter $(GPDB_RELEASE),6 7),)
 	REGRESS += gpdb-$(GPDB_RELEASE)-zstd
-endif
 endif # ENABLE_ZSTD
 
 ifdef USE_PGXS
