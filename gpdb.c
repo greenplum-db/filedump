@@ -15,6 +15,7 @@
 #include "gpdb.h"
 
 #include "cdb/cdbappendonlystorageformat.h"
+#include "cdb/cdbappendonlystorageformat_impl.h"
 #include "utils/datumstreamblock.h"
 
 #if GP_VERSION_NUM >= 60000

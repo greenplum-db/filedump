@@ -1,33 +1,31 @@
 -- control file
-\! pg_filedump -c test/pg_control.gp5
+\! pg_filedump -c test/pg_control.gp7_12.12
 
 *******************************************************************
 * PostgreSQL File/Block Formatted Dump Utility
 *
-* File: test/pg_control.gp5
+* File: test/pg_control.gp7_12.12
 * Options used: -c
 *******************************************************************
 
 <pg_control Contents> *********************************************
 
                           CRC: Correct
-           pg_control Version: 8330500
-              Catalog Version: 301705051
-            System Identifier: 6789878087174324149
+           pg_control Version: 12010700
+              Catalog Version: 302307241
+            System Identifier: 7285811498409084924
                         State: IN PRODUCTION
-                Last Mod Time: Wed Feb  5 20:17:46 2020
-       Last Checkpoint Record: Log File (0) Offset (0x0cc49e70)
-   Previous Checkpoint Record: Log File (0) Offset (0x0cc49de0)
-  Last Checkpoint Record Redo: Log File (0) Offset (0x0cc49e70)
+       Last Checkpoint Record: Log File (0) Offset (0x08000060)
+  Last Checkpoint Record Redo: Log File (0) Offset (0x08000028)
           |-       TimeLineID: 1
-          |-         Next XID: 0/934
-          |-         Next OID: 32768
-          |- Next Relfilenode: 32768
+          |-         Next XID: 0/1076
+          |-         Next OID: 24576
+          |- Next Relfilenode: 12502
           |-       Next Multi: 1
           |-    Next MultiOff: 0
-          |-             Time: Wed Feb  5 20:17:46 2020
        Minimum Recovery Point: Log File (0) Offset (0x00000000)
           Backup Start Record: Log File (0) Offset (0x00000000)
+            Backup End Record: Log File (0) Offset (0x00000000)
 End-of-Backup Record Required: no
        Maximum Data Alignment: 8
         Floating-Point Sample: 1234567
